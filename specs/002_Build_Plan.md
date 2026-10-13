@@ -29,7 +29,7 @@ DBGuard is built layer by layer. Each layer ends with a manual test. The next la
 ### L0: Monorepo scaffold ✅
 Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 
-### L1: Database and seed data
+### L1: Database and seed data ✅
 - Create the hosted Supabase project.
 - Create the `dbguard_agent` role. Its password is set manually, never committed.
 - Add all demo tables to one `sandbox` schema (for example `customers`, `orders`, `products`, `support_tickets`), with fake seed data managed by migrations.
@@ -39,8 +39,8 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 
 ### L2: MCP server
 - Serve `/api/mcp` over streamable HTTP, protected by a bearer token.
-- Table-level tools: `list_tables`, `describe_table`, `create_table`, `alter_table`, `drop_table`.
-- Row-level tools: `read_rows`, `insert_rows`, `update_rows`, `delete_rows`.
+- Table-level tools: `list_tables`, `describe_table`, `create_table`, `drop_table`, `add_column`, `drop_column`. `alter_table` is split into separate tools because ArmorIQ checks only the tool name, so one broad tool would let a plan to *add* a column also cover *dropping* one.
+- Row-level tools: `read_rows`, `insert_rows`, `update_rows`, `delete_rows`. `update_rows` and `delete_rows` require at least one filter.
 - Connect to Postgres directly, since DDL can't go through PostgREST. Every tool is restricted to the `sandbox` schema.
 - **Test:** connect MCP Inspector to `localhost:3000/api/mcp` and call each tool. Check that a request without the bearer token is rejected.
 
