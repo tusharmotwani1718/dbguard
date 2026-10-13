@@ -1,0 +1,24 @@
+{
+  "name": "dbguard",
+  "private": true,
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:status": "supabase status",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local > apps/web/src/lib/supabase/database.types.ts"
+  },
+  "devDependencies": {
+    "supabase": "^2.120.0",
+    "turbo": "^2"
+  }
+}
