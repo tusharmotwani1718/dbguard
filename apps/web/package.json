@@ -8,9 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "sandbox:reset": "bun scripts/reset-sandbox.ts"
+    "sandbox:reset": "bun scripts/reset-sandbox.ts",
+    "armoriq:spike": "bun scripts/armoriq-spike.ts"
   },
   "dependencies": {
+    "@armoriq/sdk": "^0.6.10",
     "@base-ui/react": "^1.9.0",
     "@modelcontextprotocol/server": "^2.3.1",
     "@supabase/ssr": "^0.12.7",
