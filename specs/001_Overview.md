@@ -20,13 +20,13 @@ Means we will build an agent and give it some tools for the database operations 
 
 We will give the tools to the agent by creating (or using) an MCP server and provide these tools as mcp tools.
 
-We will be using mistral AI typescript SDK for building the agent.
+We will be using the OpenAI Agents SDK (TypeScript) for building the agent. (Originally Mistral; switched because the Mistral account had no request quota.)
 
 ## Tech Stack
 
 The web app is a monorepo initalised with Next JS, Typescript, shadcn and bun as runtime.
 
-Agentic SDK: Mistral TypeScript SDK
+Agentic SDK: OpenAI Agents SDK (`@openai/agents`)
 
 **ArmorIQ is must to be used as the security layer for the agentic tool calls.**
 

@@ -7,7 +7,7 @@ DBGuard is built layer by layer. Each layer ends with a manual test. The next la
 - **Database:** a hosted Supabase project (not local), seeded with fake data only.
 - **MCP server:** our own, served from `apps/web` as a Next.js route (`/api/mcp`) and deployed publicly. ArmorIQ's proxy forwards each tool call to the registered MCP server URL, so localhost will not work.
 - **Tools:** both table-level operations (create, drop, alter tables) and row-level operations (read, insert, update, delete rows).
-- **Agent:** two phases. Mistral first produces a plan; we lock it with ArmorIQ (`capturePlan` → `getIntentToken`). Then Mistral runs it, and every tool call goes through `client.invoke`.
+- **Agent:** two phases, built on the OpenAI Agents SDK. A planner agent first produces a plan; we lock it with ArmorIQ (`capturePlan` → `getIntentToken`). Then the executor agent runs it, and every tool call goes through `client.invoke`.
 - **Blocked scenarios to demo:** prompt injection, a policy rule and an off-plan tool call.
 - **Users:** a single demo user, no auth.
 - **Env vars:** every new key is added to `apps/web/.env.example` in the layer that introduces it.
@@ -37,27 +37,35 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 - Add a reset script that restores the sandbox to its seeded state, so the demo can be repeated.
 - **Test:** run the reset script and check that the tables and rows appear in Supabase Studio. Change a row, reset again and check that it's restored.
 
-### L2: MCP server
+### L2: MCP server ✅
 - Serve `/api/mcp` over streamable HTTP, protected by a bearer token.
 - Table-level tools: `list_tables`, `describe_table`, `create_table`, `drop_table`, `add_column`, `drop_column`. `alter_table` is split into separate tools because ArmorIQ checks only the tool name, so one broad tool would let a plan to *add* a column also cover *dropping* one.
 - Row-level tools: `read_rows`, `insert_rows`, `update_rows`, `delete_rows`. `update_rows` and `delete_rows` require at least one filter.
 - Connect to Postgres directly, since DDL can't go through PostgREST. Every tool is restricted to the `sandbox` schema.
 - **Test:** connect MCP Inspector to `localhost:3000/api/mcp` and call each tool. Check that a request without the bearer token is rejected.
 
-### L3: Deploy and an ArmorIQ spike (the riskiest layer, so it comes early)
+### L3: Deploy and an ArmorIQ spike (the riskiest layer, so it comes early) ⏸️
+**Status:**
+- The proxy 500 was an MCP server name mismatch, fixed with ArmorIQ support. `ARMORIQ_MCP_NAME` must match the dashboard name exactly.
+- ✅ Server-side block confirmed: the proxy answers an off-plan tool with 403 `tool_not_in_allowlist` (`PolicyBlockedException`).
+- The allowed call failed with a 400 from our own server. MCP SDK v2 rejects JSON-RPC messages with extra top-level members, and the proxy adds some. `/api/mcp` now strips them and logs what it removed; `MCP_DEBUG=1` logs raw bodies.
 - Deploy to Vercel.
 - Register the MCP server on the ArmorIQ dashboard.
 - Write a script with a hard-coded plan that calls one action in the plan (allowed) and one action outside it (blocked).
 - **Test:** run the script. Check that the allowed call changes or returns data and the blocked call throws. Both calls should show up in the ArmorIQ dashboard.
 
-### L4: Mistral agent, unguarded
-- A Mistral tool-calling loop that calls the MCP tools directly, without ArmorIQ.
-- A basic chat UI.
+### L4: OpenAI agent, unguarded
+- An OpenAI Agents SDK agent (`src/server/agent/run-agent.ts`). It is a real MCP client of our own `/api/mcp`: `sandbox-tools.ts` lists the MCP tools and wraps each one as an SDK function tool. The handler is swappable (`CallTool`): unguarded mode calls MCP directly, and layer 5 plugs in ArmorIQ `invoke` without changing the tools the model sees.
+- We don't use the SDK's built-in MCP integration, because it calls the server directly and leaves no point to route calls through ArmorIQ.
+- `/api/agent` streams events as NDJSON: `thought`, `tool_call`, `tool_result`, `answer`, `error`. Layer 7's timeline reuses these events.
+- History lives in the browser only. At most 10 model turns per message (`maxTurns`). The model comes from `OPENAI_MODEL` (default `gpt-5`). Runs are traced to the OpenAI dashboard.
+- A basic chat UI with expandable tool-call cards.
+- Check whether the model falls for the injected ticket. The unguarded demo depends on it.
 - **Test:** ask for things like "show me the 5 latest orders" and "add a column to products". Check the answers and the database changes.
 
 ### L5: Guarded agent
-- Phase 1: Mistral produces a structured plan, which we lock with ArmorIQ.
-- Phase 2: Mistral executes it, with every tool call going through `invoke`.
+- Phase 1: a planner agent produces a structured plan (SDK structured output), which we lock with ArmorIQ.
+- Phase 2: the executor agent runs it with the same tools, but the `CallTool` handler sends every call through `invoke`.
 - When a call is blocked, the result is returned to the model as a tool error, so the agent can explain what happened instead of crashing.
 - **Test:** a normal request is allowed end to end. Ask the agent to summarize the support tickets: the injected ticket tries `drop_table` and gets blocked.
 
