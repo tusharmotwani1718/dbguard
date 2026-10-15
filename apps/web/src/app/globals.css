@@ -128,3 +128,13 @@
     @apply font-sans;
   }
 }
+/* Agent answers are rendered from markdown; keep them compact and table-friendly. */
+@layer components {
+  .markdown > * + * { @apply mt-3; }
+  .markdown ul { @apply list-disc pl-5; }
+  .markdown ol { @apply list-decimal pl-5; }
+  .markdown code { @apply rounded bg-muted px-1 py-0.5 font-mono text-xs; }
+  .markdown table { @apply block w-full overflow-x-auto border-collapse text-xs; }
+  .markdown th, .markdown td { @apply border px-2 py-1 text-left; }
+  .markdown th { @apply bg-muted font-medium; }
+}

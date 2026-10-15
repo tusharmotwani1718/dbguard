@@ -7,7 +7,11 @@
     "DATABASE_URL",
     "MCP_API_KEY",
     "ARMORIQ_API_KEY",
-    "ARMORIQ_MCP_NAME"
+    "ARMORIQ_MCP_NAME",
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
+    "MCP_SERVER_URL",
+    "MCP_DEBUG"
   ],
   "tasks": {
     "build": {
