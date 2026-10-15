@@ -8,15 +8,35 @@
 
 import { ArmorIQClient, type IntentToken } from "@armoriq/sdk";
 
-const MCP = process.env.ARMORIQ_MCP_NAME ?? "dbguard-mcp";
+const MCP = process.env.ARMORIQ_MCP_NAME ?? "dbGuard";
 
 const client = new ArmorIQClient({
   apiKey: process.env.ARMORIQ_API_KEY,
   agentId: "dbguard-agent",
   mcpCredentials: {
     [MCP]: { authType: "bearer", token: process.env.MCP_API_KEY! },
-  },
+  }
 });
+
+// ARMORIQ_DEBUG=1 logs every raw ArmorIQ HTTP exchange. The SDK flattens error bodies
+// to "[object Object]", so this is the only way to see what the proxy actually said.
+if (process.env.ARMORIQ_DEBUG) {
+  type Exchange = { status?: number; data?: unknown; config?: { method?: string; url?: string } };
+  const log = (r: Exchange | undefined) =>
+    console.log(
+      `[http] ${r?.config?.method?.toUpperCase()} ${r?.config?.url} → ${r?.status}\n`,
+      JSON.stringify(r?.data, null, 2)?.slice(0, 3000)
+    );
+  // httpClient is private in the SDK's types but is a plain axios instance.
+  const http = (client as unknown as { httpClient: { interceptors: { response: { use: (ok: (r: Exchange) => Exchange, err: (e: { response?: Exchange }) => never) => void } } } }).httpClient;
+  http.interceptors.response.use(
+    (r) => (log(r), r),
+    (e) => {
+      log(e.response);
+      throw e;
+    }
+  );
+}
 
 const readParams = {
   table: "orders",
@@ -45,7 +65,9 @@ async function check(label: string, fn: () => Promise<unknown>) {
     console.log("RESULT: allowed\n", JSON.stringify(result, null, 2).slice(0, 1500));
   } catch (error) {
     const e = error as Error & { response?: { status?: number; data?: unknown } };
-    console.log(`RESULT: blocked — ${e.name}: ${e.message}`);
+    console.log(`RESULT: blocked — ${e.name}: ${JSON.stringify(e.message)}`);
+    console.error(JSON.stringify(e.cause));
+    console.error(e);
     if (e.response) console.log("proxy response:", e.response.status, JSON.stringify(e.response.data));
   }
 }
