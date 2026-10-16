@@ -54,7 +54,7 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 - Write a script with a hard-coded plan that calls one action in the plan (allowed) and one action outside it (blocked).
 - **Test:** run the script. Check that the allowed call changes or returns data and the blocked call throws. Both calls should show up in the ArmorIQ dashboard.
 
-### L4: OpenAI agent, unguarded
+### L4: OpenAI agent, unguarded ✅
 - An OpenAI Agents SDK agent (`src/server/agent/run-agent.ts`). It is a real MCP client of our own `/api/mcp`: `sandbox-tools.ts` lists the MCP tools and wraps each one as an SDK function tool. The handler is swappable (`CallTool`): unguarded mode calls MCP directly, and layer 5 plugs in ArmorIQ `invoke` without changing the tools the model sees.
 - We don't use the SDK's built-in MCP integration, because it calls the server directly and leaves no point to route calls through ArmorIQ.
 - `/api/agent` streams events as NDJSON: `thought`, `tool_call`, `tool_result`, `answer`, `error`. Layer 7's timeline reuses these events.

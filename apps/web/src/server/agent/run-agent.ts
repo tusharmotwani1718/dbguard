@@ -41,7 +41,7 @@ export async function* runAgent(history: ChatTurn[], mcp: McpClient): AsyncGener
   const agent = new Agent({
     name: "DBGuard database assistant",
     instructions: INSTRUCTIONS,
-    model: process.env.OPENAI_MODEL || "gpt-5",
+    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
     tools: await sandboxTools(mcp, callViaMcp(mcp), queue.push),
   });
   const input = history.map((turn) =>
