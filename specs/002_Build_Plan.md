@@ -44,11 +44,12 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 - Connect to Postgres directly, since DDL can't go through PostgREST. Every tool is restricted to the `sandbox` schema.
 - **Test:** connect MCP Inspector to `localhost:3000/api/mcp` and call each tool. Check that a request without the bearer token is rejected.
 
-### L3: Deploy and an ArmorIQ spike (the riskiest layer, so it comes early) ⏸️
+### L3: Deploy and an ArmorIQ spike (the riskiest layer, so it comes early) ✅
 **Status:**
 - The proxy 500 was an MCP server name mismatch, fixed with ArmorIQ support. `ARMORIQ_MCP_NAME` must match the dashboard name exactly.
 - ✅ Server-side block confirmed: the proxy answers an off-plan tool with 403 `tool_not_in_allowlist` (`PolicyBlockedException`).
-- The allowed call failed with a 400 from our own server. MCP SDK v2 rejects JSON-RPC messages with extra top-level members, and the proxy adds some. `/api/mcp` now strips them and logs what it removed; `MCP_DEBUG=1` logs raw bodies.
+- ✅ Allowed call works end to end: SDK → proxy → `/api/mcp` → Supabase.
+- The allowed call first failed with a 400 from our own server. MCP SDK v2 rejects JSON-RPC messages with extra top-level members, and the proxy adds some. `/api/mcp` now strips them and logs what it removed; `MCP_DEBUG=1` logs raw bodies.
 - Deploy to Vercel.
 - Register the MCP server on the ArmorIQ dashboard.
 - Write a script with a hard-coded plan that calls one action in the plan (allowed) and one action outside it (blocked).
@@ -58,9 +59,10 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 - An OpenAI Agents SDK agent (`src/server/agent/run-agent.ts`). It is a real MCP client of our own `/api/mcp`: `sandbox-tools.ts` lists the MCP tools and wraps each one as an SDK function tool. The handler is swappable (`CallTool`): unguarded mode calls MCP directly, and layer 5 plugs in ArmorIQ `invoke` without changing the tools the model sees.
 - We don't use the SDK's built-in MCP integration, because it calls the server directly and leaves no point to route calls through ArmorIQ.
 - `/api/agent` streams events as NDJSON: `thought`, `tool_call`, `tool_result`, `answer`, `error`. Layer 7's timeline reuses these events.
-- History lives in the browser only. At most 10 model turns per message (`maxTurns`). The model comes from `OPENAI_MODEL` (default `gpt-5`). Runs are traced to the OpenAI dashboard.
+- History lives in the browser only. At most 10 model turns per message (`maxTurns`). The model comes from `OPENAI_MODEL` (default `gpt-4.1-mini`).
+- **Injection test:** `gpt-5` recognised and refused the injected ticket; `gpt-4.1-mini` fell for it and dropped `customers`. We use `gpt-4.1-mini` for both modes so the guarded/unguarded comparison uses the same model. Demo talking point: a model's injection resistance is probabilistic and varies by model, while ArmorIQ's plan lock is deterministic.
+- Runs are traced to the OpenAI dashboard.
 - A basic chat UI with expandable tool-call cards.
-- Check whether the model falls for the injected ticket. The unguarded demo depends on it.
 - **Test:** ask for things like "show me the 5 latest orders" and "add a column to products". Check the answers and the database changes.
 
 ### L5: Guarded agent
