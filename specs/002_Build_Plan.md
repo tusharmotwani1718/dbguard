@@ -66,14 +66,20 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 - **Test:** ask for things like "show me the 5 latest orders" and "add a column to products". Check the answers and the database changes.
 
 ### L5: Guarded agent
-- Phase 1: a planner agent produces a structured plan (SDK structured output), which we lock with ArmorIQ.
-- Phase 2: the executor agent runs it with the same tools, but the `CallTool` handler sends every call through `invoke`.
-- When a call is blocked, the result is returned to the model as a tool error, so the agent can explain what happened instead of crashing.
-- **Test:** a normal request is allowed end to end. Ask the agent to summarize the support tickets: the injected ticket tries `drop_table` and gets blocked.
+- **Phase 1, plan:** our code (not the model) fetches the schema, which is table and column names only, never rows. A planner agent (`planner.ts`, structured output) sees only the user's messages, the tool list and the schema, and returns the tools the request needs. Assistant replies are excluded because they may quote table data. Tool names the planner invents are dropped. The plan is signed with `capturePlan` → `getIntentToken` (600 s validity) before the agent reads any data.
+- **Phase 2, execute:** the executor has the same instructions and the same tools as unguarded mode, so ArmorIQ is the only difference. Its `CallTool` handler is `callViaArmorIQ(token)` (`src/server/armoriq.ts`), using the normal `invoke`.
+- **Blocks:** `IntentMismatchException` → `intent`, `PolicyBlockedException` → `policy`, `PolicyHoldException` → `hold`. A block goes back to the model as a tool error ("Blocked by ArmorIQ: … tell the user"), so the agent finishes and explains. Other tool failures also come back as tool errors.
+- An empty plan means no token is signed and the executor gets no tools.
+- New events: `plan_locked` (goal, steps, token id) and `tool_blocked` (kind, reason). `/api/agent` takes `mode` (default `guarded`); the header has a guarded/unguarded switch.
+- **Verified end to end:**
+  - "Show me the 3 latest orders": plan `[read_rows]`, allowed.
+  - "Summarize the open support tickets": plan `[read_rows]`; the injected `drop_table customers` is **blocked (intent)**, and the other tickets are still summarized.
+  - "Drop the customers table": plan `[drop_table]`, **blocked (policy)** by the dashboard rule `drop_table` where `table = customers` ("denied by OPA").
+- **Test:** run all three in guarded mode, then the injection prompt in unguarded mode (the table is really dropped), then `sandbox:reset`.
 
 ### L6: Policies
-- Add dashboard policies, for example: `drop_table` and `delete_rows` are never allowed on `customers`, and some actions are held for approval.
-- Switch the agent to `invokeWithPolicy`.
+- ✅ Already working via the normal `invoke`: the dashboard rule `drop_table` where `table = customers` is enforced by the proxy (OPA), so `invokeWithPolicy` isn't needed.
+- Remaining: optionally a `delete_rows` rule on `customers`, and a hold-for-approval rule if the dashboard supports it.
 - **Test:** a request whose plan includes a forbidden action is blocked by the policy (`PolicyBlockedException`), even though the action is in the plan.
 
 ### L7: Demo UI
