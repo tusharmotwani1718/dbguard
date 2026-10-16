@@ -2,15 +2,14 @@
 
 import { useRef, useState } from "react";
 import { ArrowUpIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { AgentEvent, ChatTurn } from "@/lib/agent-events";
+import type { AgentEvent, AgentMode, ChatTurn } from "@/lib/agent-events";
 import { AssistantTurn } from "./assistant-turn";
 
 type Turn =
   | { role: "user"; content: string }
-  | { role: "assistant"; events: AgentEvent[]; pending: boolean };
+  | { role: "assistant"; mode: AgentMode; events: AgentEvent[]; pending: boolean };
 
 // Only user prompts and final answers go back to the model; tool traffic stays per-turn.
 function toHistory(turns: Turn[]): ChatTurn[] {
@@ -38,6 +37,7 @@ export function Chat() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<AgentMode>("guarded");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const updateLast = (fn: (turn: Extract<Turn, { role: "assistant" }>) => Turn) =>
@@ -50,7 +50,7 @@ export function Chat() {
     const prompt = input.trim();
     if (!prompt || busy) return;
     const next: Turn[] = [...turns, { role: "user", content: prompt }];
-    setTurns([...next, { role: "assistant", events: [], pending: true }]);
+    setTurns([...next, { role: "assistant", mode, events: [], pending: true }]);
     setInput("");
     setBusy(true);
 
@@ -58,7 +58,7 @@ export function Chat() {
       const response = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: toHistory(next) }),
+        body: JSON.stringify({ messages: toHistory(next), mode }),
       });
       if (!response.ok) throw new Error(`Agent request failed (${response.status})`);
       for await (const event of readEvents(response)) {
@@ -78,10 +78,22 @@ export function Chat() {
     <div className="mx-auto flex h-svh w-full max-w-3xl flex-col px-4">
       <header className="flex items-center gap-3 border-b py-4">
         <h1 className="text-lg font-semibold tracking-tight">DBGuard</h1>
-        <Badge variant="outline">Unguarded</Badge>
-        <span className="ml-auto text-xs text-muted-foreground">
-          Tools run directly, without ArmorIQ
-        </span>
+        <div className="ml-auto flex rounded-lg border p-0.5" role="radiogroup" aria-label="Mode">
+          {(["guarded", "unguarded"] as const).map((m) => (
+            <Button
+              key={m}
+              size="sm"
+              variant={mode === m ? (m === "guarded" ? "default" : "destructive") : "ghost"}
+              onClick={() => setMode(m)}
+              disabled={busy}
+              role="radio"
+              aria-checked={mode === m}
+              className="capitalize"
+            >
+              {m}
+            </Button>
+          ))}
+        </div>
       </header>
 
       <main className="flex-1 space-y-6 overflow-y-auto py-6">
@@ -96,7 +108,7 @@ export function Chat() {
               {turn.content}
             </div>
           ) : (
-            <AssistantTurn key={i} events={turn.events} pending={turn.pending} />
+            <AssistantTurn key={i} mode={turn.mode} events={turn.events} pending={turn.pending} />
           )
         )}
         <div ref={bottomRef} />
