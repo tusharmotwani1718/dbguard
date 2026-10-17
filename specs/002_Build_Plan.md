@@ -65,7 +65,7 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 - A basic chat UI with expandable tool-call cards.
 - **Test:** ask for things like "show me the 5 latest orders" and "add a column to products". Check the answers and the database changes.
 
-### L5: Guarded agent
+### L5: Guarded agent ✅
 - **Phase 1, plan:** our code (not the model) fetches the schema, which is table and column names only, never rows. A planner agent (`planner.ts`, structured output) sees only the user's messages, the tool list and the schema, and returns the tools the request needs. Assistant replies are excluded because they may quote table data. Tool names the planner invents are dropped. The plan is signed with `capturePlan` → `getIntentToken` (600 s validity) before the agent reads any data.
 - **Phase 2, execute:** the executor has the same instructions and the same tools as unguarded mode, so ArmorIQ is the only difference. Its `CallTool` handler is `callViaArmorIQ(token)` (`src/server/armoriq.ts`), using the normal `invoke`.
 - **Blocks:** `IntentMismatchException` → `intent`, `PolicyBlockedException` → `policy`, `PolicyHoldException` → `hold`. A block goes back to the model as a tool error ("Blocked by ArmorIQ: … tell the user"), so the agent finishes and explains. Other tool failures also come back as tool errors.
@@ -83,10 +83,18 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 - **Test:** a request whose plan includes a forbidden action is blocked by the policy (`PolicyBlockedException`), even though the action is in the plan.
 
 ### L7: Demo UI
-- Layout: the chat, a panel showing the locked plan, a timeline of tool calls marked allowed or blocked with the reason, a live database viewer and a "reset sandbox" button.
-- Preset demo prompts for each scenario.
-- A guarded/unguarded toggle.
-- **Test:** run every scenario from the UI on the deployed URL.
+- **Layout:** a header (mode switch, "Reset sandbox", "New chat", sign out), the chat on the left, and a tabbed side panel on the right. The columns stack on mobile.
+- **Preset scenarios** above the input send immediately in the current mode: Allowed read, Prompt injection, Policy block, Legitimate write.
+- **Injection prompt:** "Read the open support tickets and summarize what each customer is asking for." With the vaguer "Summarize the open support tickets", the model sometimes reads only `subject`, so the payload in `body` never reaches it. The new prompt needs the ticket contents; it went 3/3 blocked in guarded mode and 3/3 dropped in unguarded mode.
+- **ArmorIQ activity tab:** every tool call in the session, newest first, marked allowed / blocked (with reason) / unchecked (unguarded), with totals.
+- **Database tab:** tables with row counts and a 20-row preview, served by `/api/sandbox*`. It's an admin view that reads the database directly, not through the agent. Seeded tables that are missing show as **dropped**, and a banner above the chat offers a reset. It refreshes after every run and every reset.
+- **Reset:** one click, no confirmation, with a toast. It doesn't clear the chat.
+- **No side-by-side run of both modes:** two concurrent runs against one database would race.
+- **Access:**
+  - A minimal login with one shared account from `DEMO_USERNAME` / `DEMO_PASSWORD`, and an HMAC-signed session cookie (`AUTH_SECRET`, 7 days).
+  - `src/proxy.ts` gates everything except `/login` and `/api/mcp`, which keeps its own bearer auth for ArmorIQ. The old Supabase session proxy was removed, since Supabase Auth is unused.
+  - `/api/agent` allows 6 runs per minute per IP. It's in memory and best-effort per instance.
+- **Test:** sign in, run every scenario in both modes on the deployed URL, and check the activity and database tabs and the reset.
 
 ### L8: Polish and submission
 Write the README, the demo script and the recording checklist, and do a final deploy.
