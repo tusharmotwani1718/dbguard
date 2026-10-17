@@ -11,7 +11,10 @@
     "OPENAI_API_KEY",
     "OPENAI_MODEL",
     "MCP_SERVER_URL",
-    "MCP_DEBUG"
+    "MCP_DEBUG",
+    "DEMO_USERNAME",
+    "DEMO_PASSWORD",
+    "AUTH_SECRET"
   ],
   "tasks": {
     "build": {
