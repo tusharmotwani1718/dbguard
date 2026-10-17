@@ -14,7 +14,8 @@
     "db:link": "supabase link",
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --linked > apps/web/src/lib/supabase/database.types.ts",
-    "sandbox:reset": "bun --cwd apps/web run sandbox:reset"
+    "sandbox:reset": "bun --cwd apps/web run sandbox:reset",
+    "armoriq:spike": "bun --cwd apps/web run armoriq:spike"
   },
   "devDependencies": {
     "supabase": "^2.120.0",

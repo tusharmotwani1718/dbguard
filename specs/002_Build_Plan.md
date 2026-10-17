@@ -97,7 +97,8 @@ Turborepo, bun, Next.js 16, shadcn and the Supabase CLI.
 - **Test:** sign in, run every scenario in both modes on the deployed URL, and check the activity and database tabs and the reset.
 
 ### L8: Polish and submission
-Write the README, the demo script and the recording checklist, and do a final deploy.
+- ✅ README (app overview, scenarios, architecture, ArmorIQ usage, sandbox data, setup guide).
+- Remaining: the demo script and the recording checklist, and do a final deploy.
 
 ## Suggested timeline (5 days)
 - Day 1: L1, L2
