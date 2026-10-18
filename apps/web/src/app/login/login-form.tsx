@@ -22,6 +22,11 @@ export function LoginForm() {
       <Button type="submit" className="w-full" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
+      <div>
+        <h4>Use these demo credentials to login</h4>
+        <p>Demo Username: armoriq</p>
+        <p>Demo Password: dbArmor@0111</p>
+      </div>
     </form>
   );
 }
